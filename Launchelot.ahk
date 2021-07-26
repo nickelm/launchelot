@@ -133,6 +133,9 @@ LaunchAccount(account, server)
 	; Find the path
 	IniRead daoc_path, %A_ScriptDir%\launchelot.ini, Settings, game_path
 
+	; Read the accounts
+	accounts := GetAccounts()
+
 	; Look up the password
 	if (!accounts.HasKey(account)) {
 		MsgBox, Missing account information for %account%!
