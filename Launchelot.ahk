@@ -52,7 +52,7 @@ if (IsStandalone()) {
 Return
 
 ; -- Reload the script using Ctrl+Alt+R
-^!r::Reload
+; ^!r::Reload
 
 ; -- Launch DAoC -------------------------------------------------
 ; path - full path on your hard drive to DAoC 
