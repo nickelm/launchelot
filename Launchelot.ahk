@@ -1,5 +1,8 @@
 ; --------------------------------------------------------------------------------
 ; Launchelot - DAoC Launcher for AHK by Madgrim Laeknir (BelomarFleetfoot#0319).
+;
+; Released July 2021 as Open Source on GitHub under the MIT License.
+; 
 ; June 3, 2021 - Initial version.
 ; June 7, 2021 - Standalone launcher support.
 ; June 10, 2021 - First release: major features implemented.
@@ -29,7 +32,7 @@ global servers  := ["Ywain1", "Ywain2", "Ywain3", "Ywain4", "Ywain5", "Ywain6", 
 global classes  := ["Animist", "Armsman", "Bainshee", "Bard", "Berserker", "Blademaster", "Bonedancer", "Cabalist", "Champion", "Cleric", "Druid", "Eldritch", "Enchanter", "Friar", "Healer", "Heretic", "Hero", "Hunter", "Infiltrator", "Mauler", "Mentalist", "Mercenary", "Minstrel", "Necromancer", "Nightshade", "Paladin", "Ranger", "Reaver", "Runemaster", "Savage", "Scout", "Shadowblade", "Shaman", "Skald", "Sorcerer", "Spiritmaster", "Thane", "Theurgist", "Valewalker", "Valkyrie", "Vampiir", "Warden", "Warlock", "Warrior", "Wizard"]
 
 global DefaultDAoCPath := "C:\Program Files (x86)\Electronic Arts\Dark Age of Camelot"
-global LaunchelotBuild := "Build 5 - June 20, 2021"
+global LaunchelotBuild := "Build 6 - July 26, 2021"
 
 ; -- Run the launcher if the script is run standalone
 if (IsStandalone()) {
@@ -275,10 +278,12 @@ RunLauncher()
 
 	; Add the toons to the toon tab
 	toons := GetToons()
-	Gui, Launchelot:Add, ListView, vToonView gHandleToonView -Multi w460 h300 xs, Toon|Account|Class|Server|Realm|Script
+	Gui, Launchelot:Add, ListView, vToonView gHandleToonView -Multi w460 h300 xs, Toon|Account|Class|Server|Realm|Script|Note
 	Gui, Launchelot:Default
 	for index, elem in toons {
-		LV_Add("", toons[A_Index][1], toons[A_Index][2], toons[A_Index][4], toons[A_Index][3], toons[A_Index][5], toons[A_Index][6])
+		curr_toon := toons[A_Index][1]
+		curr_note := toons[A_Index].length() > 6 ? toons[A_Index][7] : ""
+		LV_Add("", curr_toon, toons[A_Index][2], toons[A_Index][4], toons[A_Index][3], toons[A_Index][5], toons[A_Index][6], curr_note)
 	}
 	LV_ModifyCol()
 
@@ -391,7 +396,8 @@ LaunchelotGuiContextMenu() {
 			LV_GetText(curr_class, curr_row, 4)
 			LV_GetText(curr_realm, curr_row, 5)
 			LV_GetText(curr_script, curr_row, 6)
-			ShowToonDialog("Edit Toon", curr_ndx, curr_row, curr_toon, curr_account, curr_server, curr_class, curr_realm, curr_script)
+			LV_GetText(curr_note, curr_row, 7)
+			ShowToonDialog("Edit Toon", curr_ndx, curr_row, curr_toon, curr_account, curr_server, curr_class, curr_realm, curr_script, curr_note)
 
 		Case "Delete":
 			MsgBox, 8196, Warning, Are you sure you want to delete toon %curr_toon%?
@@ -522,8 +528,11 @@ LaunchelotEditSave()
 	; Now save into the .ini file
 	if (InStr(EditMode, "Toon")) {
 
+		; Eliminate commas from notes
+		notes := StrReplace(ValueControl7, ",")
+		
 		; Construct the data string
-		data := Join(",", ValueControl1, ValueControl2, ValueControl4, ValueControl3, ValueControl5, ValueControl6)
+		data := Join(",", ValueControl1, ValueControl2, ValueControl4, ValueControl3, ValueControl5, ValueControl6, notes)
 
 		; Now update the listview
 		Gui, Launchelot:Tab, 1
@@ -538,12 +547,12 @@ LaunchelotEditSave()
 			if (next_ndx > max_index) {
 				IniWrite, %next_ndx%, %A_ScriptDir%\launchelot.ini, Toons, max_index
 			}
-			LV_Add("", ValueControl1, ValueControl2, ValueControl3, ValueControl4, ValueControl5, ValueControl6)
+			LV_Add("", ValueControl1, ValueControl2, ValueControl3, ValueControl4, ValueControl5, ValueControl6, notes)
 		}
 		; No, we are updating an old one
 		else {
 			IniWrite, %data%, %A_ScriptDir%\launchelot.ini, Toons, toon%EditIndex%
-			LV_Modify(EditRow, "", ValueControl1, ValueControl2, ValueControl3, ValueControl4, ValueControl5, ValueControl6)
+			LV_Modify(EditRow, "", ValueControl1, ValueControl2, ValueControl3, ValueControl4, ValueControl5, ValueControl6, notes)
 		}
 	}
 	else if (InStr(EditMode, "Account")) {
@@ -633,7 +642,7 @@ GetKeys(object) {
 	return keys
 }
 
-ShowToonDialog(title, curr_ndx, curr_row, curr_toon, curr_account, curr_class, curr_server, curr_realm, curr_script) {
+ShowToonDialog(title, curr_ndx, curr_row, curr_toon, curr_account, curr_class, curr_server, curr_realm, curr_script, curr_note) {
 	; Construct the DDL arrays
 	accounts := GetAccounts()
 
@@ -643,13 +652,13 @@ ShowToonDialog(title, curr_ndx, curr_row, curr_toon, curr_account, curr_class, c
 	curr_realms := MarkDDLOption(realms, curr_realm)
 
 	; Create the dialog
-	CreateEditDialog(title, curr_ndx, curr_row, [[ "Toon name", curr_toon ], [ "Account", curr_accounts ], [ "Class", curr_classes], ["Server", curr_servers], ["Realm", curr_realms], ["AHK Script (if any)", curr_script]])
+	CreateEditDialog(title, curr_ndx, curr_row, [[ "Toon name", curr_toon ], [ "Account", curr_accounts ], [ "Class", curr_classes], ["Server", curr_servers], ["Realm", curr_realms], ["AHK Script (if any)", curr_script], ["Notes", curr_note]])
 }
 
 ; ShowTeamDialog(title, curr_ndx, curr_row, )
 
 AddToon() {
-	ShowToonDialog("Add Toon", -1, -1, "", "", "", "", "", "")
+	ShowToonDialog("Add Toon", -1, -1, "", "", "", "", "", "", "")
 }
 
 AddAccount() {
@@ -673,11 +682,12 @@ EditToon() {
 	LV_GetText(curr_server, curr_row, 4)
 	LV_GetText(curr_realm, curr_row, 5)
 	LV_GetText(curr_script, curr_row, 6)
+	LV_GetText(curr_note, curr_row, 7)
 
 	curr_ndx := FindValueIndex(curr_toon, "Toons", "toon")
 
 	; Show the dialog
-	ShowToonDialog("Edit Toon", curr_ndx, curr_row, curr_toon, curr_account, curr_class, curr_server, curr_realm, curr_script)
+	ShowToonDialog("Edit Toon", curr_ndx, curr_row, curr_toon, curr_account, curr_class, curr_server, curr_realm, curr_script, curr_note)
 }
 
 EditAccount() {
@@ -794,18 +804,6 @@ GetToons() {
 		toons.push(StrSplit(toon_data, ","))
 	}
 	return toons
-}
-
-GetNotes() {
-	notes := []
-	IniRead num_notes, %A_ScriptDir%\launchelot.ini, Notes, max_index, 0
-	Loop, %num_notes% {
-		IniRead, note_data, %A_ScriptDir%\launchelot.ini, Notes, note%A_Index%, ERROR
-		if (note_data = "ERROR")
-			continue
-		notes[A_Index] := note_data
-	}
-	return notes
 }
 
 GetTeams() {
