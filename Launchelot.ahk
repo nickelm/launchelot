@@ -655,8 +655,6 @@ ShowToonDialog(title, curr_ndx, curr_row, curr_toon, curr_account, curr_class, c
 	CreateEditDialog(title, curr_ndx, curr_row, [[ "Toon name", curr_toon ], [ "Account", curr_accounts ], [ "Class", curr_classes], ["Server", curr_servers], ["Realm", curr_realms], ["AHK Script (if any)", curr_script], ["Notes", curr_note]])
 }
 
-; ShowTeamDialog(title, curr_ndx, curr_row, )
-
 AddToon() {
 	ShowToonDialog("Add Toon", -1, -1, "", "", "", "", "", "", "")
 }
