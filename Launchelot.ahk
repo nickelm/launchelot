@@ -424,12 +424,15 @@ LaunchelotGuiContextMenu() {
 		LV_GetText(curr_note, curr_row, 3)
 		curr_ndx := FindValueIndex(curr_account, "Accounts", "account")
 
+		accounts := GetAccounts()
+		Base64decUTF8(password, accounts[curr_account][2])
+
 		; Show the menu
 		Menu, AccountContextMenu, Show, %A_GuiX%, %A_GuiY%
 
 		Switch (A_ThisMenuItem) {
 		Case "Edit":
-			CreateEditDialog("Edit Account", curr_ndx, curr_row, [["Account name", curr_account], ["Password", ""], ["Note", curr_note]])
+			CreateEditDialog("Edit Account", curr_ndx, curr_row, [["Account name", curr_account], ["Password", password], ["Note", curr_note]])
 
 		Case "Delete":
 			MsgBox, 8196, Warning, Are you sure you want to delete account %curr_account%?
