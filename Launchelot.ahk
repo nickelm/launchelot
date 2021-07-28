@@ -9,7 +9,8 @@
 ; June 12, 2021 - Second release: adding context menus and bug fixes.
 ; June 16, 2021 - Fourth build: UI updates to avoid reloading.
 ; June 20, 2021 - Fifth build: saving sort order state.
-; June 22, 2021 - Sixth build: launching teams
+; July 26, 2021 - Sixth build: launching teams
+; July 27, 2021 - account notes (build 7)
 ; --------------------------------------------------------------------------------
 
 #SingleInstance, Force		; Force a single instance of this script
@@ -32,7 +33,7 @@ global servers  := ["Ywain1", "Ywain2", "Ywain3", "Ywain4", "Ywain5", "Ywain6", 
 global classes  := ["Animist", "Armsman", "Bainshee", "Bard", "Berserker", "Blademaster", "Bonedancer", "Cabalist", "Champion", "Cleric", "Druid", "Eldritch", "Enchanter", "Friar", "Healer", "Heretic", "Hero", "Hunter", "Infiltrator", "Mauler", "Mentalist", "Mercenary", "Minstrel", "Necromancer", "Nightshade", "Paladin", "Ranger", "Reaver", "Runemaster", "Savage", "Scout", "Shadowblade", "Shaman", "Skald", "Sorcerer", "Spiritmaster", "Thane", "Theurgist", "Valewalker", "Valkyrie", "Vampiir", "Warden", "Warlock", "Warrior", "Wizard"]
 
 global DefaultDAoCPath := "C:\Program Files (x86)\Electronic Arts\Dark Age of Camelot"
-global LaunchelotBuild := "Build 6 - July 26, 2021"
+global LaunchelotBuild := "Build 7 - July 27, 2021"
 
 ; -- Run the launcher if the script is run standalone
 if (IsStandalone()) {
@@ -309,10 +310,11 @@ RunLauncher()
 
 	; Add the accounts to the account tab
 	accounts := GetAccounts()
-	Gui, Launchelot:Add, ListView, -Multi vAccountView gHandleAccountView w460 h300 xs, Account|Password
+	Gui, Launchelot:Add, ListView, -Multi vAccountView gHandleAccountView w460 h300 xs, Account|Password|Note
 	Gui, Launchelot:Default
 	for index, elem in accounts {
-		LV_Add("", elem[1], "********")
+		curr_note := elem.length() > 2 ? elem[3] : ""
+		LV_Add("", elem[1], "********", curr_note)
 	}
 	LV_ModifyCol()
 
@@ -419,6 +421,7 @@ LaunchelotGuiContextMenu() {
 		if (curr_row = 0)
 			return
 		LV_GetText(curr_account, curr_row, 1)
+		LV_GetText(curr_note, curr_row, 3)
 		curr_ndx := FindValueIndex(curr_account, "Accounts", "account")
 
 		; Show the menu
@@ -426,7 +429,7 @@ LaunchelotGuiContextMenu() {
 
 		Switch (A_ThisMenuItem) {
 		Case "Edit":
-			CreateEditDialog("Edit Account", curr_ndx, curr_row, [["Account name", curr_account], ["Password", ""]])
+			CreateEditDialog("Edit Account", curr_ndx, curr_row, [["Account name", curr_account], ["Password", ""], ["Note", curr_note]])
 
 		Case "Delete":
 			MsgBox, 8196, Warning, Are you sure you want to delete account %curr_account%?
@@ -560,11 +563,15 @@ LaunchelotEditSave()
 	}
 	else if (InStr(EditMode, "Account")) {
 
+		; Eliminate commas from notes
+		notes := StrReplace(ValueControl3, ",")
+
 		; Encode the password
 		Base64encUTF8(password, ValueControl2)
+		password := RTrim(password, " `t`n`r")
 
 		; Construct the data string
-		data := Join(",", ValueControl1, password)
+		data := Join(",", ValueControl1, password, notes)
 
 		; Now update the listview
 		Gui, Launchelot:Tab, 2
@@ -576,7 +583,7 @@ LaunchelotEditSave()
 			IniRead, max_index, %A_ScriptDir%\launchelot.ini, Accounts, max_index, 0
 			next_ndx := FindNextIndex("Accounts", "account")
 			IniWrite, %data%, %A_ScriptDir%\launchelot.ini, Accounts, account%next_ndx%
-			LV_Add("", ValueControl1, "********")			
+			LV_Add("", ValueControl1, "********", notes)
 			if (next_ndx > max_index) {
 				IniWrite, %next_ndx%, %A_ScriptDir%\launchelot.ini, Accounts, max_index
 			}
@@ -584,7 +591,7 @@ LaunchelotEditSave()
 		; No, we are updating an old one
 		else {
 			IniWrite, %data%, %A_ScriptDir%\launchelot.ini, Accounts, account%EditIndex%
-			LV_Modify(EditRow, "", ValueControl1, "********")			
+			LV_Modify(EditRow, "", ValueControl1, "********", notes)
 		}
 	}
 	else if (InStr(EditMode, "Team")) {
@@ -663,7 +670,7 @@ AddToon() {
 }
 
 AddAccount() {
-	CreateEditDialog("Add Account", -1, -1, [["Account name", ""], ["Password", ""]])
+	CreateEditDialog("Add Account", -1, -1, [["Account name", ""], ["Password", ""], ["Note", ""]])
 }
 
 AddTeam() {
@@ -699,10 +706,14 @@ EditAccount() {
 	if (curr_row = 0) 
 		return
 	LV_GetText(curr_account, curr_row, 1)
+	LV_GetText(curr_note, curr_row, 3)
+
+	accounts := GetAccounts()
+	Base64decUTF8(password, accounts[curr_account][2])
 
 	curr_ndx := FindValueIndex(curr_account, "Accounts", "account")
 
-	CreateEditDialog("Edit Account", curr_ndx, curr_row, [["Account name", curr_account], ["Password", ""]])
+	CreateEditDialog("Edit Account", curr_ndx, curr_row, [["Account name", curr_account], ["Password", password], ["Note", curr_note]])
 }
 
 EditTeam() {
@@ -824,7 +835,7 @@ GetAccounts() {
 	IniRead num_accounts, %A_ScriptDir%\launchelot.ini, Accounts, max_index, 0
 	Loop, %num_accounts% {
 		IniRead, account_data, %A_ScriptDir%\launchelot.ini, Accounts, account%A_Index%, ERROR
-		if (account_data ="ERROR")
+		if (account_data = "ERROR")
 			continue
 		fields := StrSplit(account_data, ",")
 		accounts[fields[1]] := fields
