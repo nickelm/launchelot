@@ -230,12 +230,17 @@ FindValueIndex(value, sec, key_prefix)
 LaunchelotMenuHandler()
 {
 	switch (A_ThisMenuItem) {
-	Case "Set &DAoC Path":
+	Case "Set DAoC &Path":
 		IniRead daoc_path, %A_ScriptDir%\launchelot.ini, Settings, game_path
 		FileSelectFolder, new_path, *%daoc_path%, 0, "Select the DAoC Game folder"
 		if (ErrorLevel != 1)
 			IniWrite %new_path%, %A_ScriptDir%\launchelot.ini, Settings, game_path
 	Case "&Reload":
+		Reload
+	Case "&Dark Mode":
+		IniRead DarkMode, %A_ScriptDir%\launchelot.ini, Settings, dark_mode, 0
+		DarkMode := !DarkMode
+		IniWrite %DarkMode%, %A_ScriptDir%\launchelot.ini, Settings, dark_mode
 		Reload
 	Case "E&xit":
 		ExitApp
@@ -256,12 +261,31 @@ RunLauncher()
 	IniRead AccountSortAscending, %A_ScriptDir%\launchelot.ini, Settings, account_sort_ascending, 1
 	IniRead TeamSortColumn, %A_ScriptDir%\launchelot.ini, Settings, team_sort_column, -1
 	IniRead TeamSortAscending, %A_ScriptDir%\launchelot.ini, Settings, team_sort_ascending, 1
+	IniRead DarkMode, %A_ScriptDir%\launchelot.ini, Settings, dark_mode, 0
+
+	; Set up the UI colors
+	if (DarkMode) {
+		BGColor := "36393F"
+		TextColor := "ffffff"
+		ListColor := "36393F"
+	}
+	else {
+		BGColor := "f0f0f0"
+		TextColor := "000000"
+		ListColor := "ffffff"	
+	}
 
 	; Set up the menu bar
 	Gui, Launchelot:+Resize MinSize400x400
-	Menu, FileMenu, Add, Set &DAoC Path, LaunchelotMenuHandler
+	Gui, Launchelot:Color, %BGColor%
+	Gui, Launchelot:Font, c%TextColor%
+	Menu, FileMenu, Add, Set DAoC &Path, LaunchelotMenuHandler
 	Menu, FileMenu, Add, &Reload, LaunchelotMenuHandler
 	Menu, FileMenu, Add, &Kill Mutex, KillMutex
+	Menu, FileMenu, Add, &Dark Mode, LaunchelotMenuHandler
+	if (DarkMode) {
+		Menu, FileMenu, ToggleCheck, &Dark Mode
+	}
 	Menu, FileMenu, Add
 	Menu, FileMenu, Add, E&xit, LaunchelotMenuHandler
 	Menu, HelpMenu, Add, &About, LaunchelotMenuHandler
@@ -282,7 +306,8 @@ RunLauncher()
 
 	; Add the toons to the toon tab
 	toons := GetToons()
-	Gui, Launchelot:Add, ListView, vToonView gHandleToonView -Multi w460 h300 xs, Toon|Account|Class|Server|Realm|Script|Note
+	Gui, Launchelot:Add, ListView, vToonView gHandleToonView background%ListColor% c%TextColor% -Multi w460 h300 xs, Toon|Account|Class|Server|Realm|Script|Note
+	Gui, ToonView:Color, 808080
 	Gui, Launchelot:Default
 	for index, elem in toons {
 		curr_toon := toons[A_Index][1]
@@ -310,7 +335,7 @@ RunLauncher()
 
 	; Add the accounts to the account tab
 	accounts := GetAccounts()
-	Gui, Launchelot:Add, ListView, -Multi vAccountView gHandleAccountView w460 h300 xs, Account|Password|Note
+	Gui, Launchelot:Add, ListView, -Multi vAccountView gHandleAccountView background%ListColor% c%TextColor% w460 h300 xs, Account|Password|Note
 	Gui, Launchelot:Default
 	for index, elem in accounts {
 		curr_note := elem.length() > 2 ? elem[3] : ""
@@ -339,7 +364,7 @@ RunLauncher()
 
 	; Add the teams to the team tab
 	teams := GetTeams()
-	Gui, Launchelot:Add, ListView, -Multi vTeamView gHandleTeamView w460 h300 xs, Team|Script
+	Gui, Launchelot:Add, ListView, -Multi vTeamView gHandleTeamView background%ListColor% c%TextColor% w460 h300 xs, Team|Script
 	Gui, Launchelot:Default
 	for index, elem in teams {
 		script := elem[1]
