@@ -11,6 +11,7 @@
 ; June 20, 2021 - Fifth build: saving sort order state.
 ; July 26, 2021 - Sixth build: launching teams
 ; July 27, 2021 - account notes (build 7)
+; March 12, 2022 - multiple toon entries with different AHK scripts (build 8)
 ; --------------------------------------------------------------------------------
 
 #SingleInstance, Force		; Force a single instance of this script
@@ -33,7 +34,7 @@ global servers  := ["Ywain1", "Ywain2", "Ywain3", "Ywain4", "Ywain5", "Ywain6", 
 global classes  := ["Animist", "Armsman", "Bainshee", "Bard", "Berserker", "Blademaster", "Bonedancer", "Cabalist", "Champion", "Cleric", "Druid", "Eldritch", "Enchanter", "Friar", "Healer", "Heretic", "Hero", "Hunter", "Infiltrator", "Mauler", "Mentalist", "Mercenary", "Minstrel", "Necromancer", "Nightshade", "Paladin", "Ranger", "Reaver", "Runemaster", "Savage", "Scout", "Shadowblade", "Shaman", "Skald", "Sorcerer", "Spiritmaster", "Thane", "Theurgist", "Valewalker", "Valkyrie", "Vampiir", "Warden", "Warlock", "Warrior", "Wizard"]
 
 global DefaultDAoCPath := "C:\Program Files (x86)\Electronic Arts\Dark Age of Camelot"
-global LaunchelotBuild := "Build 7 - July 27, 2021"
+global LaunchelotBuild := "Build 8 - March 12, 2022"
 
 ; -- Run the launcher if the script is run standalone
 if (IsStandalone()) {
@@ -84,9 +85,9 @@ LaunchDAoC(path, server, account, password, toon := "", realm := "") {
 
 ; -- Launch Toon from Database ---------------------------------------
 ; toon - character name
-; run_script - run the AHK script (if there is one) (optional)
+; script - script to run (optional; empty string "" means none)
 ; --------------------------------------------------------------------
-LaunchToon(toon, run_script := true)
+LaunchToon(toon, script := "")
 {
 	; Find the path
 	IniRead daoc_path, %A_ScriptDir%\launchelot.ini, Settings, game_path
@@ -107,7 +108,6 @@ LaunchToon(toon, run_script := true)
 	; Set up the values
 	account := Trim(item[2])
 	server := Trim(item[3])
-	script := item.MaxIndex() > 5 ? item[6] : ""
 	realm := (item[5] = "Alb") ? 1 : (item[5] = "Mid") ? 2 : 3
 
 	; Look up the password
@@ -121,7 +121,7 @@ LaunchToon(toon, run_script := true)
 	LaunchDAoC(daoc_path, server, account, password, toon, realm)
 
 	; If there is an AHK script, call it too
-	if (script != "" and run_script) 
+	if (script != "") 
 		RunScript(script)	
 }
 
@@ -163,7 +163,7 @@ LaunchTeam(toons, script := "")
 			Continue
 
 		; Launch this toon
-		LaunchToon(element, false)
+		LaunchToon(element, "")
 
 		; Sleep half a second
 		Sleep, 500
@@ -306,15 +306,16 @@ RunLauncher()
 
 	; Add the toons to the toon tab
 	toons := GetToons()
-	Gui, Launchelot:Add, ListView, vToonView gHandleToonView background%ListColor% c%TextColor% -Multi w460 h300 xs, Toon|Account|Class|Server|Realm|Script|Note
+	Gui, Launchelot:Add, ListView, vToonView gHandleToonView background%ListColor% c%TextColor% -Multi w460 h300 xs, Toon|Account|Class|Server|Realm|Index|Script|Note
 	Gui, ToonView:Color, 808080
 	Gui, Launchelot:Default
 	for index, elem in toons {
 		curr_toon := toons[A_Index][1]
-		curr_note := toons[A_Index].length() > 6 ? toons[A_Index][7] : ""
-		LV_Add("", curr_toon, toons[A_Index][2], toons[A_Index][4], toons[A_Index][3], toons[A_Index][5], toons[A_Index][6], curr_note)
+		curr_note := toons[A_Index].length() > 7 ? toons[A_Index][8] : ""
+		LV_Add("", curr_toon, toons[A_Index][2], toons[A_Index][4], toons[A_Index][3], toons[A_Index][5], toons[A_Index][6], toons[A_Index][7], curr_note)
 	}
 	LV_ModifyCol()
+	LV_ModifyCol(6, 0)
 
 	; Set the sorting state
 	if (ToonSortColumn != -1) {
@@ -411,22 +412,22 @@ LaunchelotGuiContextMenu() {
 		if (curr_row = 0)
 			return
 		LV_GetText(curr_toon, curr_row, 1)
-		curr_ndx := FindValueIndex(curr_toon, "Toons", "toon")
+		LV_GetText(curr_account, curr_row, 2)
+		LV_GetText(curr_server, curr_row, 3)
+		LV_GetText(curr_class, curr_row, 4)
+		LV_GetText(curr_realm, curr_row, 5)
+		LV_GetText(curr_ndx, curr_row, 6)
+		LV_GetText(curr_script, curr_row, 7)
+		LV_GetText(curr_note, curr_row, 8)
 
 		; Show the menu
 		Menu, ToonContextMenu, Show, %A_GuiX%, %A_GuiY%
 
 		Switch (A_ThisMenuItem) {
 		Case "Launch":
-			LaunchToon(curr_toon)
+			LaunchToon(curr_toon, curr_script)
 
 		Case "Edit":
-			LV_GetText(curr_account, curr_row, 2)
-			LV_GetText(curr_server, curr_row, 3)
-			LV_GetText(curr_class, curr_row, 4)
-			LV_GetText(curr_realm, curr_row, 5)
-			LV_GetText(curr_script, curr_row, 6)
-			LV_GetText(curr_note, curr_row, 7)
 			ShowToonDialog("Edit Toon", curr_ndx, curr_row, curr_toon, curr_account, curr_server, curr_class, curr_realm, curr_script, curr_note)
 
 		Case "Delete":
@@ -717,10 +718,9 @@ EditToon() {
 	LV_GetText(curr_class, curr_row, 3)
 	LV_GetText(curr_server, curr_row, 4)
 	LV_GetText(curr_realm, curr_row, 5)
-	LV_GetText(curr_script, curr_row, 6)
-	LV_GetText(curr_note, curr_row, 7)
-
-	curr_ndx := FindValueIndex(curr_toon, "Toons", "toon")
+	LV_GetText(curr_ndx, curr_row, 6)
+	LV_GetText(curr_script, curr_row, 7)
+	LV_GetText(curr_note, curr_row, 8)
 
 	; Show the dialog
 	ShowToonDialog("Edit Toon", curr_ndx, curr_row, curr_toon, curr_account, curr_class, curr_server, curr_realm, curr_script, curr_note)
@@ -773,11 +773,7 @@ DeleteToon() {
 	if (curr_row = 0) 
 		return
 	LV_GetText(curr_toon, curr_row, 1)
-
-	; Look for the index
-	curr_ndx := FindValueIndex(curr_toon, "Toons", "toon")
-	if (curr_ndx = 0)
-		return
+	LV_GetText(curr_ndx, curr_row, 6)
 
 	; Ask for confirmation
 	MsgBox, 8196, Warning, Are you sure you want to delete toon %curr_toon%?
@@ -841,7 +837,9 @@ GetToons() {
 		IniRead, toon_data, %A_ScriptDir%\launchelot.ini, Toons, toon%A_Index%, ERROR
 		if (toon_data = "ERROR")
 			continue
-		toons.push(StrSplit(toon_data, ","))
+		toon_fields := StrSplit(toon_data, ",")
+		toon_fields.insert(6, A_Index)
+		toons.push(toon_fields)
 	}
 	return toons
 }
@@ -880,10 +878,11 @@ HandleToonView() {
 		curr_row := LV_GetNext(0)
 		if (curr_row = 0) 
 			return
-		LV_GetText(toon, curr_row, 1)
+		LV_GetText(curr_toon, curr_row, 1)
+		LV_GetText(curr_script, curr_row, 7)
 
 		; Launch the toon
-		LaunchToon(toon)
+		LaunchToon(curr_toon, curr_script)
 	}
 	else if (A_GuiEvent = "ColClick") {
 		IniRead SortColumn, %A_ScriptDir%\launchelot.ini, Settings, toon_sort_column, -1
