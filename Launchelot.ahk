@@ -12,6 +12,7 @@
 ; July 26, 2021 - Sixth build: launching teams
 ; July 27, 2021 - account notes (build 7)
 ; March 12, 2022 - multiple toon entries with different AHK scripts (build 8)
+; March 15, 2022 - finally squashed a context menu bug (build 9)
 ; --------------------------------------------------------------------------------
 
 #SingleInstance, Force		; Force a single instance of this script
@@ -26,6 +27,7 @@ global ToonContextMenu, AccountContextMenu, TeamContextMenu
 global LaunchTab
 global EditMode := "Toon", EditIndex := -1, EditRow := -1
 global ValueControl1, ValueControl2, ValueControl3, ValueControl4, ValueControl5, ValueControl6, ValueControl7, ValueControl8, ValueControl9
+global ContextCanceled := true
 
 global realms   := ["Alb", "Mid", "Hib"]
 
@@ -34,7 +36,7 @@ global servers  := ["Ywain1", "Ywain2", "Ywain3", "Ywain4", "Ywain5", "Ywain6", 
 global classes  := ["Animist", "Armsman", "Bainshee", "Bard", "Berserker", "Blademaster", "Bonedancer", "Cabalist", "Champion", "Cleric", "Druid", "Eldritch", "Enchanter", "Friar", "Healer", "Heretic", "Hero", "Hunter", "Infiltrator", "Mauler", "Mentalist", "Mercenary", "Minstrel", "Necromancer", "Nightshade", "Paladin", "Ranger", "Reaver", "Runemaster", "Savage", "Scout", "Shadowblade", "Shaman", "Skald", "Sorcerer", "Spiritmaster", "Thane", "Theurgist", "Valewalker", "Valkyrie", "Vampiir", "Warden", "Warlock", "Warrior", "Wizard"]
 
 global DefaultDAoCPath := "C:\Program Files (x86)\Electronic Arts\Dark Age of Camelot"
-global LaunchelotBuild := "Build 8 - March 12, 2022"
+global LaunchelotBuild := "Build 9 - March 15, 2022"
 
 ; -- Run the launcher if the script is run standalone
 if (IsStandalone()) {
@@ -401,7 +403,7 @@ Join(sep, params*) {
 }
 
 Context() {
-	; purposefully empty
+	ContextCanceled := false
 }
 
 LaunchelotGuiContextMenu() {
@@ -419,9 +421,14 @@ LaunchelotGuiContextMenu() {
 		LV_GetText(curr_ndx, curr_row, 6)
 		LV_GetText(curr_script, curr_row, 7)
 		LV_GetText(curr_note, curr_row, 8)
+		ContextCanceled := true
 
 		; Show the menu
 		Menu, ToonContextMenu, Show, %A_GuiX%, %A_GuiY%
+
+		; Bug out if we canceled
+		if (ContextCanceled)
+			return
 
 		Switch (A_ThisMenuItem) {
 		Case "Launch":
@@ -452,9 +459,14 @@ LaunchelotGuiContextMenu() {
 
 		accounts := GetAccounts()
 		Base64decUTF8(password, accounts[curr_account][2])
+		ContextCanceled := true
 
 		; Show the menu
 		Menu, AccountContextMenu, Show, %A_GuiX%, %A_GuiY%
+
+		; Bug out if we canceled
+		if (ContextCanceled)
+			return
 
 		Switch (A_ThisMenuItem) {
 		Case "Edit":
@@ -489,9 +501,14 @@ LaunchelotGuiContextMenu() {
 		{
 			curr_toons.push("")
 		}
+		ContextCanceled := true
 
 		; Show the menu
 		Menu, TeamContextMenu, Show, %A_GuiX%, %A_GuiY%
+
+		; Bug out if we canceled
+		if (ContextCanceled)
+			return
 
 		Switch (A_ThisMenuItem) {
 		Case "Edit":
